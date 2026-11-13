@@ -4,10 +4,17 @@ const OWNER = process.env.GITHUB_OWNER?.trim();
 const REPO = process.env.GITHUB_REPO?.trim();
 const TOKEN = process.env.GITHUB_TOKEN?.trim();
 const ADMIN_PIN = process.env.ADMIN_PIN?.trim();
-const FILE_PATH = 'data/products.json';
 
 function getGitHubUrl() {
-  return `https://github.com{OWNER}/${REPO}/contents/${FILE_PATH}`;
+  return [
+    'https://github.com',
+    'repos',
+    OWNER,
+    REPO,
+    'contents',
+    'data',
+    'products.json',
+  ].join('/');
 }
 
 async function getFileFromGitHub() {
