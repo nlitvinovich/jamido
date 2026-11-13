@@ -80,9 +80,24 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { action, pin, product, id } = body;
+    const cleanInputPin = String(pin || '').trim();
 
-    if (!ADMIN_PIN || pin !== ADMIN_PIN) {
-      return NextResponse.json({ error: 'Неверный PIN-код мастера' }, { status: 401 });
+    if (!ADMIN_PIN) {
+      return NextResponse.json(
+        { error: 'Переменная ADMIN_PIN не найдена на сервере Vercel! Проверьте Settings -> Environment Variables и сделайте Redeploy.' },
+        { status: 500 }
+      );
+    }
+
+    if (cleanInputPin !== ADMIN_PIN) {
+      return NextResponse.json(
+        { error: `Неверный PIN-код (на сервере ожидается пароль длиной ${ADMIN_PIN.length} симв.)` },
+        { status: 401 }
+      );
+    }
+
+    if (action === 'verify') {
+      return NextResponse.json({ ok: true });
     }
 
     const { products, sha } = await getFileFromGitHub();
