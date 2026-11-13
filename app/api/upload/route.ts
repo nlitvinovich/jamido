@@ -1,41 +1,35 @@
-import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
+import { put } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 
-export async function POST(request: Request): Promise<NextResponse> {
+export async function POST(request: Request) {
   try {
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    const token = process.env.BLOB_READ_WRITE_TOKEN;
+    if (!token) {
       return NextResponse.json(
-        { error: 'Переменная BLOB_READ_WRITE_TOKEN отсутствует на сервере! Сделайте Redeploy.' },
+        { error: 'Токен BLOB_READ_WRITE_TOKEN не найден на сервере. Проверьте Settings -> Environment Variables и сделайте Redeploy.' },
         { status: 500 }
       );
     }
 
-    const body = (await request.json()) as HandleUploadBody;
+    const formData = await request.formData();
+    const file = formData.get('file') as File | null;
 
-    const jsonResponse = await handleUpload({
-      body,
-      request,
-      onBeforeGenerateToken: async () => {
-        return {
-          allowedContentTypes: [
-            'image/jpeg',
-            'image/png',
-            'image/webp',
-            'image/heic',
-            'image/heif',
-            'video/mp4',
-            'video/quicktime',
-            'video/webm',
-          ],
-          addRandomSuffix: true,
-        };
-      },
-      onUploadCompleted: async () => {},
+    if (!file) {
+      return NextResponse.json({ error: 'Файл не передан на сервер' }, { status: 400 });
+    }
+
+    // Безопасное имя файла без кириллицы и пробелов
+    const ext = file.name.split('.').pop() || 'jpg';
+    const safeFileName = `jamido-${Date.now()}.${ext}`;
+
+    const blob = await put(safeFileName, file, {
+      access: 'public',
+      token,
     });
 
-    return NextResponse.json(jsonResponse);
+    return NextResponse.json({ url: blob.url });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: `Ошибка сервера /api/upload: ${message}` }, { status: 400 });
+    return NextResponse.json({ error: `Ошибка Blob: ${message}` }, { status: 500 });
   }
 }
