@@ -22,7 +22,10 @@ async function getFileFromGitHub() {
     throw new Error('Не заданы GITHUB_OWNER, GITHUB_REPO или GITHUB_TOKEN в Vercel');
   }
 
-  const res = await fetch(getGitHubUrl(), {
+  // Добавляем timestamp к запросу, чтобы полностью исключить кэширование старого SHA
+  const urlWithNoCache = `${getGitHubUrl()}?t=${Date.now()}`;
+
+  const res = await fetch(urlWithNoCache, {
     headers: {
       Authorization: `Bearer ${TOKEN}`,
       Accept: 'application/vnd.github.v3+json',
@@ -51,6 +54,20 @@ async function getFileFromGitHub() {
 async function updateFileInGitHub(products: unknown[], sha: string | undefined, message: string) {
   const contentBase64 = Buffer.from(JSON.stringify(products, null, 2), 'utf-8').toString('base64');
 
+  const payload: Record<string, unknown> = {
+    message,
+    content: contentBase64,
+    branch: 'main',
+    committer: {
+      name: 'Jamido App',
+      email: 'bot@jamido.by',
+    },
+  };
+
+  if (sha) {
+    payload.sha = sha;
+  }
+
   const res = await fetch(getGitHubUrl(), {
     method: 'PUT',
     headers: {
@@ -59,16 +76,12 @@ async function updateFileInGitHub(products: unknown[], sha: string | undefined, 
       'Content-Type': 'application/json',
       'User-Agent': 'Jamido-PWA-App',
     },
-    body: JSON.stringify({
-      message,
-      content: contentBase64,
-      ...(sha ? { sha } : {}),
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(`GitHub PUT (${res.status}): ${err.message || 'Ошибка записи коммита'}`);
+    throw new Error(`GitHub PUT (${res.status}): ${err.message || JSON.stringify(err)}`);
   }
 }
 
@@ -91,7 +104,7 @@ export async function POST(req: Request) {
 
     if (!ADMIN_PIN) {
       return NextResponse.json(
-        { error: 'Переменная ADMIN_PIN не найдена на сервере Vercel! Проверьте Settings -> Environment Variables и сделайте Redeploy.' },
+        { error: 'Переменная ADMIN_PIN не найдена на сервере Vercel!' },
         { status: 500 }
       );
     }
