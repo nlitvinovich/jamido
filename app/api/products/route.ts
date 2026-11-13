@@ -107,7 +107,7 @@ export async function POST(req: Request) {
 
     if (cleanInputPin !== ADMIN_PIN) {
       return NextResponse.json(
-        { error: `Неверный PIN-код (на сервере ожидается пароль длиной ${ADMIN_PIN.length} симв.)` },
+        { error: `Неверный PIN-код (ожидается пароль длиной ${ADMIN_PIN.length} симв.)` },
         { status: 401 }
       );
     }
@@ -121,6 +121,14 @@ export async function POST(req: Request) {
     if (action === 'add') {
       const updatedProducts = [product, ...products];
       await updateFileInGitHub(updatedProducts, sha, `Добавлено изделие: ${product.title}`);
+      return NextResponse.json(updatedProducts);
+    }
+
+    if (action === 'edit') {
+      const updatedProducts = products.map((item: { id: string }) =>
+        item.id === product.id ? product : item
+      );
+      await updateFileInGitHub(updatedProducts, sha, `Обновлено изделие: ${product.title}`);
       return NextResponse.json(updatedProducts);
     }
 
