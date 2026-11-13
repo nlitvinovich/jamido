@@ -6,17 +6,20 @@ const TOKEN = process.env.GITHUB_TOKEN?.trim();
 const ADMIN_PIN = process.env.ADMIN_PIN?.trim();
 const FILE_PATH = 'data/products.json';
 
-const GITHUB_API_URL = `https://github.com{OWNER}/${REPO}/contents/${FILE_PATH}`;
+function getGitHubUrl() {
+  return `https://github.com{OWNER}/${REPO}/contents/${FILE_PATH}`;
+}
 
 async function getFileFromGitHub() {
   if (!OWNER || !REPO || !TOKEN) {
     throw new Error('Не заданы GITHUB_OWNER, GITHUB_REPO или GITHUB_TOKEN в Vercel');
   }
 
-  const res = await fetch(GITHUB_API_URL, {
+  const res = await fetch(getGitHubUrl(), {
     headers: {
       Authorization: `Bearer ${TOKEN}`,
       Accept: 'application/vnd.github.v3+json',
+      'User-Agent': 'Jamido-PWA-App',
     },
     cache: 'no-store',
   });
@@ -41,12 +44,13 @@ async function getFileFromGitHub() {
 async function updateFileInGitHub(products: unknown[], sha: string | undefined, message: string) {
   const contentBase64 = Buffer.from(JSON.stringify(products, null, 2), 'utf-8').toString('base64');
 
-  const res = await fetch(GITHUB_API_URL, {
+  const res = await fetch(getGitHubUrl(), {
     method: 'PUT',
     headers: {
       Authorization: `Bearer ${TOKEN}`,
       Accept: 'application/vnd.github.v3+json',
       'Content-Type': 'application/json',
+      'User-Agent': 'Jamido-PWA-App',
     },
     body: JSON.stringify({
       message,
@@ -66,8 +70,9 @@ export async function GET() {
     const { products } = await getFileFromGitHub();
     return NextResponse.json(products);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Ошибка загрузки каталога';
-    return NextResponse.json({ error: message }, { status: 500 });
+    const err = error as { message?: string; cause?: { code?: string; message?: string } };
+    const details = err?.cause?.code || err?.cause?.message || err?.message || 'Ошибка загрузки';
+    return NextResponse.json({ error: details }, { status: 500 });
   }
 }
 
@@ -96,7 +101,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: 'Неизвестное действие' }, { status: 400 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Ошибка обновления каталога';
-    return NextResponse.json({ error: message }, { status: 500 });
+    const err = error as { message?: string; cause?: { code?: string; message?: string } };
+    const details = err?.cause?.code || err?.cause?.message || err?.message || 'Ошибка обновления';
+    return NextResponse.json({ error: details }, { status: 500 });
   }
 }
