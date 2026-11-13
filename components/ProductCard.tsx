@@ -10,6 +10,7 @@ export interface Product {
   price: number;
   size: string;
   imageUrl: string;
+  mediaType?: 'image' | 'video';
 }
 
 interface ProductCardProps {
@@ -19,20 +20,40 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ item, isAdmin, onDelete }: ProductCardProps) {
-  // Оптимизация ссылки Cloudinary на лету (WebP + ширина 800px)
-  const getOptimizedImage = (url: string) => {
+  const isVideo =
+    item.mediaType === 'video' ||
+    item.imageUrl.includes('/video/upload/') ||
+    /\.(mp4|mov|webm)$/i.test(item.imageUrl);
+
+  // Оптимизация фото и видео через Cloudinary на лету
+  const getOptimizedMedia = (url: string) => {
     if (!url.includes('://cloudinary.com')) return url;
+    if (isVideo) {
+      return url.replace('/upload/', '/upload/f_auto,q_auto,w_720/');
+    }
     return url.replace('/upload/', '/upload/f_auto,q_auto,w_800/');
   };
 
   return (
     <div className="bg-white rounded-2xl overflow-hidden border border-[#E6E1D8] shadow-sm flex flex-col">
       <div className="relative aspect-[4/5] bg-[#F0ECE3]">
-        <img
-          src={getOptimizedImage(item.imageUrl)}
-          alt={item.title}
-          className="w-full h-full object-cover"
-        />
+        {isVideo ? (
+          <video
+            src={getOptimizedMedia(item.imageUrl)}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <img
+            src={getOptimizedMedia(item.imageUrl)}
+            alt={item.title}
+            className="w-full h-full object-cover"
+          />
+        )}
+
         <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm text-[#3E4A3F] text-xs font-medium px-2.5 py-1 rounded-full">
           В наличии • {item.size}
         </span>
