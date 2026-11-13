@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Camera, Check, Loader2 } from 'lucide-react';
+import { upload } from '@vercel/blob/client';
 import { Category, Product } from './ProductCard';
 
 interface AddProductModalProps {
@@ -22,7 +23,7 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
   if (!isOpen) return null;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
+    const selected = e.target.files?.;
     if (selected) {
       setFile(selected);
       setIsVideo(selected.type.startsWith('video/'));
@@ -30,32 +31,17 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
     }
   };
 
-  const uploadToCloudinary = async (mediaFile: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append('file', mediaFile);
-
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData,
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      throw new Error(data.error || `Ошибка сервера загрузки (код ${res.status})`);
-    }
-
-    return data.url;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !price || !file) return;
 
     setIsSubmitting(true);
-    let step = '1. Загрузка медиа на сервер';
+    let step = '1. Загрузка в Vercel Blob';
     try {
-      const imageUrl = await uploadToCloudinary(file);
+      const newBlob = await upload(file.name, file, {
+        access: 'public',
+        handleUploadUrl: '/api/upload',
+      });
 
       step = '2. Сохранение в GitHub';
       const newItem: Product = {
@@ -64,7 +50,7 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
         category,
         price: Number(price),
         size,
-        imageUrl,
+        imageUrl: newBlob.url,
         mediaType: isVideo ? 'video' : 'image',
       };
 
