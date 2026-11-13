@@ -3,7 +3,7 @@ import { Camera, Check, Loader2 } from 'lucide-react';
 import { Category, Product } from './ProductCard';
 
 interface AddProductModalProps {
-  isOpen: booean;
+  isOpen: boolean;
   adminPin: string;
   onClose: () => void;
   onSuccess: (updatedList: Product[]) => void;
