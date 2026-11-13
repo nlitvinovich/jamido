@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ShoppingBag, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShoppingBag, Trash2, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export type Category = 'Все' | 'Платья из льна' | 'Столовое белье' | 'Платки' | 'Шторы';
 
@@ -22,14 +22,14 @@ export interface Product {
 interface ProductCardProps {
   item: Product;
   isAdmin: boolean;
+  onEdit: (item: Product) => void;
   onDelete: (id: string) => void;
 }
 
-export function ProductCard({ item, isAdmin, onDelete }: ProductCardProps) {
+export function ProductCard({ item, isAdmin, onEdit, onDelete }: ProductCardProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Собираем единый массив медиафайлов (поддерживает и новые галереи, и старые одиночные карточки)
   const mediaList: MediaItem[] =
     item.media && item.media.length > 0
       ? item.media
@@ -51,16 +51,14 @@ export function ProductCard({ item, isAdmin, onDelete }: ProductCardProps) {
     if (!scrollRef.current) return;
     const { scrollLeft, clientWidth } = scrollRef.current;
     if (clientWidth > 0) {
-      const index = Math.round(scrollLeft / clientWidth);
-      setActiveIndex(index);
+      setActiveIndex(Math.round(scrollLeft / clientWidth));
     }
   };
 
   const scrollToSlide = (index: number) => {
     if (!scrollRef.current) return;
-    const clientWidth = scrollRef.current.clientWidth;
     scrollRef.current.scrollTo({
-      left: index * clientWidth,
+      left: index * scrollRef.current.clientWidth,
       behavior: 'smooth',
     });
     setActiveIndex(index);
@@ -69,7 +67,6 @@ export function ProductCard({ item, isAdmin, onDelete }: ProductCardProps) {
   return (
     <div className="bg-white rounded-2xl overflow-hidden border border-[#E6E1D8] shadow-sm flex flex-col group">
       <div className="relative aspect-[4/5] bg-[#F0ECE3]">
-        {/* Горизонтальный свайп-контейнер */}
         <div
           ref={scrollRef}
           onScroll={handleScroll}
@@ -97,23 +94,29 @@ export function ProductCard({ item, isAdmin, onDelete }: ProductCardProps) {
           ))}
         </div>
 
-        {/* Бейдж наличия */}
         <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm text-[#3E4A3F] text-xs font-medium px-2.5 py-1 rounded-full pointer-events-none">
           В наличии • {item.size}
         </span>
 
-        {/* Кнопка удаления для мастера */}
         {isAdmin && (
-          <button
-            onClick={() => onDelete(item.id)}
-            className="absolute top-3 right-3 bg-red-600 text-white p-2 rounded-full shadow-md active:scale-90 transition z-10"
-            title="Снять с наличия"
-          >
-            <Trash2 size={16} />
-          </button>
+          <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+            <button
+              onClick={() => onEdit(item)}
+              className="bg-white/95 text-[#2C332D] p-2 rounded-full shadow-md active:scale-90 transition"
+              title="Редактировать"
+            >
+              <Pencil size={16} />
+            </button>
+            <button
+              onClick={() => onDelete(item.id)}
+              className="bg-red-600 text-white p-2 rounded-full shadow-md active:scale-90 transition"
+              title="Снять с наличия"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
         )}
 
-        {/* Стрелки навигации для ПК (если больше 1 файла) */}
         {mediaList.length > 1 && (
           <>
             {activeIndex > 0 && (
@@ -135,7 +138,6 @@ export function ProductCard({ item, isAdmin, onDelete }: ProductCardProps) {
               </button>
             )}
 
-            {/* Точки-индикаторы внизу */}
             <div className="absolute bottom-3 inset-x-0 flex justify-center gap-1.5 pointer-events-none">
               {mediaList.map((_, idx) => (
                 <span
