@@ -13,6 +13,7 @@ export default function JamidoApp() {
   const [adminPin, setAdminPin] = useState<string | null>(null);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pinInput, setPinInput] = useState('');
+  const [isVerifyingPin, setIsVerifyingPin] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const categories: Category[] = ['Все', 'Платья из льна', 'Столовое белье', 'Платки', 'Шторы'];
@@ -39,17 +40,39 @@ export default function JamidoApp() {
     });
 
     if (!res.ok) {
-      alert('Ошибка удаления (возможно, неверный PIN)');
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || 'Ошибка удаления');
       setProducts(previous);
     }
   };
 
-  const handlePinSubmit = (e: React.FormEvent) => {
+  const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pinInput.trim()) {
-      setAdminPin(pinInput.trim());
+    const enteredPin = pinInput.trim();
+    if (!enteredPin) return;
+
+    setIsVerifyingPin(true);
+    try {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'verify', pin: enteredPin }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        alert(data.error || 'Неверный PIN-код');
+        return;
+      }
+
+      setAdminPin(enteredPin);
       setPinInput('');
       setIsPinModalOpen(false);
+    } catch {
+      alert('Ошибка связи с сервером при проверке пароля');
+    } finally {
+      setIsVerifyingPin(false);
     }
   };
 
@@ -150,6 +173,7 @@ export default function JamidoApp() {
             <div className="flex gap-2">
               <button
                 type="button"
+                disabled={isVerifyingPin}
                 onClick={() => setIsPinModalOpen(false)}
                 className="flex-1 py-2.5 rounded-xl text-sm text-[#6B756C] bg-[#EBE6DD]"
               >
@@ -157,9 +181,10 @@ export default function JamidoApp() {
               </button>
               <button
                 type="submit"
-                className="flex-1 py-2.5 rounded-xl text-sm text-white bg-[#3E4A3F] font-medium"
+                disabled={isVerifyingPin}
+                className="flex-1 py-2.5 rounded-xl text-sm text-white bg-[#3E4A3F] font-medium flex items-center justify-center gap-1"
               >
-                Войти
+                {isVerifyingPin ? <Loader2 className="animate-spin" size={16} /> : 'Войти'}
               </button>
             </div>
           </form>
