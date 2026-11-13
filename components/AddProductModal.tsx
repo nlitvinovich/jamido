@@ -17,6 +17,7 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
   const [size, setSize] = useState('M (46)');
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
+  const [isVideo, setIsVideo] = useState(false);
 
   if (!isOpen) return null;
 
@@ -24,24 +25,38 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
     const selected = e.target.files?.[0];
     if (selected) {
       setFile(selected);
+      setIsVideo(selected.type.startsWith('video/'));
       setPreviewUrl(URL.createObjectURL(selected));
     }
   };
 
-  const uploadToCloudinary = async (imageFile: File): Promise<string> => {
+  const uploadToCloudinary = async (mediaFile: File): Promise<string> => {
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
     const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
-    const formData = new FormData();
-    formData.append('file', imageFile);
-    formData.append('upload_preset', uploadPreset!);
+    // Проверка, что Vercel передал переменные в браузер
+    if (!cloudName || !uploadPreset) {
+      throw new Error(
+        `Переменные не найдены в сборке! CloudName: ${cloudName || 'ПУСТО'}, Preset: ${uploadPreset || 'ПУСТО'}. Сделайте Redeploy на Vercel.`
+      );
+    }
 
-    const res = await fetch(`https://cloudinary.com{cloudName}/image/upload`, {
+    const formData = new FormData();
+    formData.append('file', mediaFile);
+    formData.append('upload_preset', uploadPreset);
+
+    const res = await fetch(`https://cloudinary.com{cloudName}/auto/upload`, {
       method: 'POST',
       body: formData,
     });
 
-    if (!res.ok) throw new Error('Ошибка загрузки фото в Cloudinary');
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(
+        `Cloudinary отклонил файл (код ${res.status}): ${errData?.error?.message || 'Неизвестная ошибка'}`
+      );
+    }
+
     const data = await res.json();
     return data.secure_url;
   };
@@ -52,6 +67,7 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
 
     setIsSubmitting(true);
     try {
+      // 1. Загрузка фото/видео в облако
       const imageUrl = await uploadToCloudinary(file);
 
       const newItem: Product = {
@@ -61,8 +77,10 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
         price: Number(price),
         size,
         imageUrl,
+        mediaType: isVideo ? 'video' : 'image',
       };
 
+      // 2. Запись карточки в GitHub
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -70,22 +88,23 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        alert(err.error || 'Ошибка сохранения');
-        return;
+        const err = await res.json().catch(() => ({}));
+        throw new Error(`Ошибка GitHub API (код ${res.status}): ${err.error || 'Не удалось сохранить товар'}`);
       }
 
       const updatedList = await res.json();
       onSuccess(updatedList);
 
-      // Сброс формы
+      // Сброс формы после успеха
       setTitle('');
       setPrice('');
       setFile(null);
       setPreviewUrl('');
+      setIsVideo(false);
       onClose();
-    } catch {
-      alert('Не удалось опубликовать изделие. Проверьте настройки Cloudinary и сети.');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      alert(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -107,14 +126,31 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
         <form onSubmit={handleSubmit} className="space-y-4">
           <label className="block border-2 border-dashed border-[#C7C0B3] rounded-2xl p-4 text-center cursor-pointer bg-white hover:bg-[#F5F2EB] transition">
             {previewUrl ? (
-              <img src={previewUrl} alt="Превью" className="h-48 w-full object-cover rounded-xl mx-auto" />
+              isVideo ? (
+                <video
+                  src={previewUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="h-48 w-full object-cover rounded-xl mx-auto"
+                />
+              ) : (
+                <img src={previewUrl} alt="Превью" className="h-48 w-full object-cover rounded-xl mx-auto" />
+              )
             ) : (
               <div className="py-6 flex flex-col items-center text-[#5C665D]">
                 <Camera size={32} className="mb-2 text-[#5D6D5E]" />
-                <span className="text-sm font-medium">Сделать фото или выбрать из галереи</span>
+                <span className="text-sm font-medium">Выбрать фото или видео с телефона</span>
               </div>
             )}
-            <input type="file" accept="image/*" required onChange={handleFileSelect} className="hidden" />
+            <input
+              type="file"
+              accept="image/*,video/*"
+              required
+              onChange={handleFileSelect}
+              className="hidden"
+            />
           </label>
 
           <div>
