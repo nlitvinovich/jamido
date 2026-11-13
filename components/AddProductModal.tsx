@@ -31,10 +31,9 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
   };
 
   const uploadToCloudinary = async (mediaFile: File): Promise<string> => {
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME?.trim();
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET?.trim();
 
-    // Проверка, что Vercel передал переменные в браузер
     if (!cloudName || !uploadPreset) {
       throw new Error(
         `Переменные не найдены в сборке! CloudName: ${cloudName || 'ПУСТО'}, Preset: ${uploadPreset || 'ПУСТО'}. Сделайте Redeploy на Vercel.`
@@ -66,10 +65,11 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
     if (!title || !price || !file) return;
 
     setIsSubmitting(true);
+    let step = '1. Загрузка в Cloudinary';
     try {
-      // 1. Загрузка фото/видео в облако
       const imageUrl = await uploadToCloudinary(file);
 
+      step = '2. Сохранение в GitHub';
       const newItem: Product = {
         id: Date.now().toString(),
         title,
@@ -80,7 +80,6 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
         mediaType: isVideo ? 'video' : 'image',
       };
 
-      // 2. Запись карточки в GitHub
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,13 +88,12 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(`Ошибка GitHub API (код ${res.status}): ${err.error || 'Не удалось сохранить товар'}`);
+        throw new Error(`Ошибка GitHub API (код ${res.status}): ${err.error || 'Не удалось сохранить'}`);
       }
 
       const updatedList = await res.json();
       onSuccess(updatedList);
 
-      // Сброс формы после успеха
       setTitle('');
       setPrice('');
       setFile(null);
@@ -104,7 +102,7 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
       onClose();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      alert(message);
+      alert(`Сбой на этапе [${step}]: ${message}`);
     } finally {
       setIsSubmitting(false);
     }
