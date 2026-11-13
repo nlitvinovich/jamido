@@ -14,11 +14,12 @@ export default function JamidoApp() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [isVerifyingPin, setIsVerifyingPin] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const categories: Category[] = ['Все', 'Платья из льна', 'Столовое белье', 'Платки', 'Шторы'];
 
-  // Функция загрузки актуального списка из GitHub без кэша
   const loadProducts = useCallback((showSpinner = false) => {
     if (showSpinner) setIsLoading(true);
     fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' })
@@ -33,10 +34,8 @@ export default function JamidoApp() {
   }, []);
 
   useEffect(() => {
-    // Первая загрузка при открытии
     loadProducts(true);
 
-    // Обновление при возврате на вкладку или разблокировке экрана
     const handleFocus = () => loadProducts(false);
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
@@ -46,8 +45,6 @@ export default function JamidoApp() {
 
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibility);
-
-    // Тихое фоновое обновление каждые 15 секунд
     const interval = setInterval(() => loadProducts(false), 15000);
 
     return () => {
@@ -56,6 +53,21 @@ export default function JamidoApp() {
       clearInterval(interval);
     };
   }, [loadProducts]);
+
+  const handleOpenAdd = () => {
+    setEditingProduct(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (item: Product) => {
+    setEditingProduct(item);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingProduct(null);
+  };
 
   const handleDelete = async (id: string) => {
     if (!adminPin || !confirm('Снять изделие с наличия?')) return;
@@ -134,7 +146,7 @@ export default function JamidoApp() {
         <div className="bg-[#3E4A3F] text-white px-4 py-3 flex items-center justify-between">
           <span className="text-sm">Режим редактирования каталога</span>
           <button
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={handleOpenAdd}
             className="bg-white text-[#3E4A3F] px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1 shadow-sm active:scale-95 transition"
           >
             <Plus size={16} /> Добавить
@@ -174,6 +186,7 @@ export default function JamidoApp() {
               key={item.id}
               item={item}
               isAdmin={Boolean(adminPin)}
+              onEdit={handleOpenEdit}
               onDelete={handleDelete}
             />
           ))}
@@ -223,9 +236,10 @@ export default function JamidoApp() {
 
       {adminPin && (
         <AddProductModal
-          isOpen={isAddModalOpen}
+          isOpen={isModalOpen}
           adminPin={adminPin}
-          onClose={() => setIsAddModalOpen(false)}
+          editingProduct={editingProduct}
+          onClose={handleCloseModal}
           onSuccess={(updatedList) => setProducts(updatedList)}
         />
       )}
