@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Camera, Check, Loader2 } from 'lucide-react';
+import { upload } from '@vercel/blob/client';
 import { Category, Product } from './ProductCard';
 
 interface AddProductModalProps {
@@ -34,21 +35,25 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
     e.preventDefault();
     if (!title || !price || !file) return;
 
+    const maxSizeBytes = 100 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+      alert(`Файл слишком большой (${(file.size / 1024 / 1024).toFixed(1)} МБ). Максимум — 100 МБ.`);
+      return;
+    }
+
     setIsSubmitting(true);
-    let step = '1. Загрузка в Vercel Blob';
+    let step = '1. Прямая загрузка в Vercel Blob';
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      // Формируем безопасное имя файла без пробелов, скобок и кириллицы
+      const rawExt = file.name.split('.').pop()?.toLowerCase() || (isVideo ? 'mp4' : 'jpg');
+      const cleanExt = rawExt.replace(/[^a-z0-9]/g, '') || (isVideo ? 'mp4' : 'jpg');
+      const safeFileName = `jamido-${Date.now()}.${cleanExt}`;
 
-      const uploadRes = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
+      const newBlob = await upload(safeFileName, file, {
+        access: 'public',
+        handleUploadUrl: '/api/upload',
+        multipart: true, // Разбивает тяжелые видео на части для надежной загрузки
       });
-
-      const uploadData = await uploadRes.json().catch(() => ({}));
-      if (!uploadRes.ok) {
-        throw new Error(uploadData.error || `Код ответа сервера: ${uploadRes.status}`);
-      }
 
       step = '2. Сохранение в GitHub';
       const newItem: Product = {
@@ -57,7 +62,7 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
         category,
         price: Number(price),
         size,
-        imageUrl: uploadData.url,
+        imageUrl: newBlob.url,
         mediaType: isVideo ? 'video' : 'image',
       };
 
@@ -120,7 +125,7 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
             ) : (
               <div className="py-6 flex flex-col items-center text-[#5C665D]">
                 <Camera size={32} className="mb-2 text-[#5D6D5E]" />
-                <span className="text-sm font-medium">Выбрать фото или видео с телефона</span>
+                <span className="text-sm font-medium">Выбрать фото или видео (до 100 МБ)</span>
               </div>
             )}
             <input
