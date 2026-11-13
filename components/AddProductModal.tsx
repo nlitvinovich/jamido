@@ -31,33 +31,21 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
   };
 
   const uploadToCloudinary = async (mediaFile: File): Promise<string> => {
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME?.trim();
-    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET?.trim();
-
-    if (!cloudName || !uploadPreset) {
-      throw new Error(
-        `Переменные не найдены в сборке! CloudName: ${cloudName || 'ПУСТО'}, Preset: ${uploadPreset || 'ПУСТО'}. Сделайте Redeploy на Vercel.`
-      );
-    }
-
     const formData = new FormData();
     formData.append('file', mediaFile);
-    formData.append('upload_preset', uploadPreset);
 
-    const res = await fetch(`https://cloudinary.com{cloudName}/auto/upload`, {
+    const res = await fetch('/api/upload', {
       method: 'POST',
       body: formData,
     });
 
+    const data = await res.json().catch(() => ({}));
+
     if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(
-        `Cloudinary отклонил файл (код ${res.status}): ${errData?.error?.message || 'Неизвестная ошибка'}`
-      );
+      throw new Error(data.error || `Ошибка сервера загрузки (код ${res.status})`);
     }
 
-    const data = await res.json();
-    return data.secure_url;
+    return data.url;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,7 +53,7 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
     if (!title || !price || !file) return;
 
     setIsSubmitting(true);
-    let step = '1. Загрузка в Cloudinary';
+    let step = '1. Загрузка медиа на сервер';
     try {
       const imageUrl = await uploadToCloudinary(file);
 
@@ -88,7 +76,7 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(`Ошибка GitHub API (код ${res.status}): ${err.error || 'Не удалось сохранить'}`);
+        throw new Error(`Ошибка GitHub API (${res.status}): ${err.error || 'Не удалось сохранить'}`);
       }
 
       const updatedList = await res.json();
