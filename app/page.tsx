@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, MapPin, Lock, Unlock, Loader2 } from 'lucide-react';
 import { Category, Product, ProductCard } from '../components/ProductCard';
 import { AddProductModal } from '../components/AddProductModal';
@@ -18,14 +18,44 @@ export default function JamidoApp() {
 
   const categories: Category[] = ['Все', 'Платья из льна', 'Столовое белье', 'Платки', 'Шторы'];
 
-  useEffect(() => {
-    fetch('/api/products')
+  // Функция загрузки актуального списка из GitHub без кэша
+  const loadProducts = useCallback((showSpinner = false) => {
+    if (showSpinner) setIsLoading(true);
+    fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) setProducts(data);
       })
-      .finally(() => setIsLoading(false));
+      .catch(() => {})
+      .finally(() => {
+        if (showSpinner) setIsLoading(false);
+      });
   }, []);
+
+  useEffect(() => {
+    // Первая загрузка при открытии
+    loadProducts(true);
+
+    // Обновление при возврате на вкладку или разблокировке экрана
+    const handleFocus = () => loadProducts(false);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadProducts(false);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // Тихое фоновое обновление каждые 15 секунд
+    const interval = setInterval(() => loadProducts(false), 15000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      clearInterval(interval);
+    };
+  }, [loadProducts]);
 
   const handleDelete = async (id: string) => {
     if (!adminPin || !confirm('Снять изделие с наличия?')) return;
