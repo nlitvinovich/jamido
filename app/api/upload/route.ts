@@ -2,9 +2,16 @@ import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const body = (await request.json()) as HandleUploadBody;
-
   try {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return NextResponse.json(
+        { error: 'Переменная BLOB_READ_WRITE_TOKEN отсутствует на сервере! Сделайте Redeploy.' },
+        { status: 500 }
+      );
+    }
+
+    const body = (await request.json()) as HandleUploadBody;
+
     const jsonResponse = await handleUpload({
       body,
       request,
@@ -28,9 +35,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json(jsonResponse);
   } catch (error) {
-    return NextResponse.json(
-      { error: (error as Error).message },
-      { status: 400 }
-    );
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: `Ошибка сервера /api/upload: ${message}` }, { status: 400 });
   }
 }
