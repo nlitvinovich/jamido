@@ -44,7 +44,6 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
     setIsSubmitting(true);
     let step = '1. Прямая загрузка в Vercel Blob';
     try {
-      // Формируем безопасное имя файла без пробелов, скобок и кириллицы
       const rawExt = file.name.split('.').pop()?.toLowerCase() || (isVideo ? 'mp4' : 'jpg');
       const cleanExt = rawExt.replace(/[^a-z0-9]/g, '') || (isVideo ? 'mp4' : 'jpg');
       const safeFileName = `jamido-${Date.now()}.${cleanExt}`;
@@ -52,7 +51,7 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
       const newBlob = await upload(safeFileName, file, {
         access: 'public',
         handleUploadUrl: '/api/upload',
-        multipart: true, // Разбивает тяжелые видео на части для надежной загрузки
+        multipart: true,
       });
 
       step = '2. Сохранение в GitHub';
@@ -87,7 +86,25 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
       setIsVideo(false);
       onClose();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+      let message = error instanceof Error ? error.message : String(error);
+
+      if (message.includes('retrieve the client token')) {
+        try {
+          const diagRes = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'blob.generate-client-token',
+              payload: { pathname: 'test.jpg', multipart: false },
+            }),
+          });
+          const diagData = await diagRes.json().catch(() => ({}));
+          if (diagData.error) {
+            message = diagData.error;
+          }
+        } catch {}
+      }
+
       alert(`Сбой на этапе [${step}]: ${message}`);
     } finally {
       setIsSubmitting(false);
