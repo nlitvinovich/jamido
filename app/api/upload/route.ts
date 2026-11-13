@@ -16,7 +16,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Не заданы ключи Cloudinary в Vercel' }, { status: 500 });
     }
 
-    // Конвертируем файл в Base64, чтобы Node.js гарантированно отправил его без обрыва потока
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const base64Data = `data:${file.type || 'image/jpeg'};base64,${buffer.toString('base64')}`;
@@ -29,6 +28,7 @@ export async function POST(req: Request) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'JamidoApp/1.0',
       },
       body: body.toString(),
     });
@@ -44,9 +44,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: data.secure_url });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Сбой при загрузке на сервер';
+    const err = error as { message?: string; cause?: { code?: string; message?: string } };
+    const details = err?.cause?.code || err?.cause?.message || err?.message || 'Неизвестный сбой';
     return NextResponse.json(
-      { error: `${message} (Cloud: ${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME})` },
+      { error: `${details} (Cloud: ${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME})` },
       { status: 500 }
     );
   }
