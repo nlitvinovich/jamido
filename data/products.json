@@ -1,5 +1,36 @@
 [
   {
+    "id": "1794601489050",
+    "title": "Вау!",
+    "category": "Платья из льна",
+    "price": 345,
+    "size": "M (46)",
+    "imageUrl": "https://ydsrltijr7eyuwxr.public.blob.vercel-storage.com/jamido-1794601481657-0-qLd5sIW8Cb8fmFtipbHW5JmDmzK9mT.jpeg",
+    "mediaType": "image",
+    "media": [
+      {
+        "url": "https://ydsrltijr7eyuwxr.public.blob.vercel-storage.com/jamido-1794601481657-0-qLd5sIW8Cb8fmFtipbHW5JmDmzK9mT.jpeg",
+        "type": "image"
+      },
+      {
+        "url": "https://ydsrltijr7eyuwxr.public.blob.vercel-storage.com/jamido-1794601483525-1-c8G78WBqKkxoyid142LWwOM5GckSr4.jpeg",
+        "type": "image"
+      },
+      {
+        "url": "https://ydsrltijr7eyuwxr.public.blob.vercel-storage.com/jamido-1794601485062-2-kMMUUkeTpTWyu2JddzNMikXAZ1jg1g.jpeg",
+        "type": "image"
+      },
+      {
+        "url": "https://ydsrltijr7eyuwxr.public.blob.vercel-storage.com/jamido-1794601486546-3-TGSb7c9gakT3EtGACdoWtBo8LVl50r.jpeg",
+        "type": "image"
+      },
+      {
+        "url": "https://ydsrltijr7eyuwxr.public.blob.vercel-storage.com/jamido-1794601487723-4-gHpsDu8p7CiekmsXPRyhNkLlK9m0F7.jpeg",
+        "type": "image"
+      }
+    ]
+  },
+  {
     "id": "1794600745026",
     "title": "Суперплатье",
     "category": "Платья из льна",
