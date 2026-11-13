@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Camera, Check, Loader2 } from 'lucide-react';
-import { upload } from '@vercel/blob/client';
 import { Category, Product } from './ProductCard';
 
 interface AddProductModalProps {
@@ -38,10 +37,18 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
     setIsSubmitting(true);
     let step = '1. Загрузка в Vercel Blob';
     try {
-      const newBlob = await upload(file.name, file, {
-        access: 'public',
-        handleUploadUrl: '/api/upload',
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
       });
+
+      const uploadData = await uploadRes.json().catch(() => ({}));
+      if (!uploadRes.ok) {
+        throw new Error(uploadData.error || `Код ответа сервера: ${uploadRes.status}`);
+      }
 
       step = '2. Сохранение в GitHub';
       const newItem: Product = {
@@ -50,7 +57,7 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
         category,
         price: Number(price),
         size,
-        imageUrl: newBlob.url,
+        imageUrl: uploadData.url,
         mediaType: isVideo ? 'video' : 'image',
       };
 
