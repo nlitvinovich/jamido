@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from 'next';
+import React from 'react';
+import './globals.css';
 
 export const viewport: Viewport = {
   themeColor: '#3E4A3F',
@@ -15,7 +17,16 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'JAMIDO',
   },
-  icons: {
-    apple: '/apple-touch-icon.png',
-  },
 };
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="ru">
+      <body className="antialiased">{children}</body>
+    </html>
+  );
+}
