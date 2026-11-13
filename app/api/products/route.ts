@@ -22,10 +22,9 @@ async function getFileFromGitHub() {
     throw new Error('Не заданы GITHUB_OWNER, GITHUB_REPO или GITHUB_TOKEN в Vercel');
   }
 
-  // Добавляем timestamp к запросу, чтобы полностью исключить кэширование старого SHA
-  const urlWithNoCache = `${getGitHubUrl()}?t=${Date.now()}`;
+  const url = `${getGitHubUrl()}?ref=main&t=${Date.now()}`;
 
-  const res = await fetch(urlWithNoCache, {
+  const res = await fetch(url, {
     headers: {
       Authorization: `Bearer ${TOKEN}`,
       Accept: 'application/vnd.github.v3+json',
@@ -39,11 +38,15 @@ async function getFileFromGitHub() {
   }
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`GitHub GET (${res.status}): ${err.message || 'Ошибка чтения файла'}`);
+    const text = await res.text();
+    throw new Error(`GitHub GET (${res.status}): ${text}`);
   }
 
   const data = await res.json();
+  if (!data.content || !data.sha) {
+    return { products: [], sha: data.sha };
+  }
+
   const content = Buffer.from(data.content, 'base64').toString('utf-8').trim();
   return {
     products: content ? JSON.parse(content) : [],
@@ -58,10 +61,6 @@ async function updateFileInGitHub(products: unknown[], sha: string | undefined, 
     message,
     content: contentBase64,
     branch: 'main',
-    committer: {
-      name: 'Jamido App',
-      email: 'bot@jamido.by',
-    },
   };
 
   if (sha) {
@@ -80,8 +79,8 @@ async function updateFileInGitHub(products: unknown[], sha: string | undefined, 
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`GitHub PUT (${res.status}): ${err.message || JSON.stringify(err)}`);
+    const text = await res.text();
+    throw new Error(`GitHub PUT (${res.status}): ${text}`);
   }
 }
 
