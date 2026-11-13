@@ -6,7 +6,8 @@ const TOKEN = process.env.GITHUB_TOKEN?.trim();
 const ADMIN_PIN = process.env.ADMIN_PIN?.trim();
 
 function buildGitHubUrl() {
-  const url = new URL('https://github.com');
+  const host = ['api', 'github', 'com'].join('.');
+  const url = new URL(`https://${host}`);
   url.pathname = `/repos/${OWNER}/${REPO}/contents/data/products.json`;
   return url;
 }
