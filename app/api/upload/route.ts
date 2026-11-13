@@ -16,21 +16,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Не заданы ключи Cloudinary в Vercel' }, { status: 500 });
     }
 
-    // Пересылаем файл с сервера Vercel напрямую в Cloudinary
-    const cloudinaryForm = new FormData();
-    cloudinaryForm.append('file', file);
-    cloudinaryForm.append('upload_preset', uploadPreset);
+    // Конвертируем файл в Base64, чтобы Node.js гарантированно отправил его без обрыва потока
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const base64Data = `data:${file.type || 'image/jpeg'};base64,${buffer.toString('base64')}`;
+
+    const body = new URLSearchParams();
+    body.append('file', base64Data);
+    body.append('upload_preset', uploadPreset);
 
     const res = await fetch(`https://cloudinary.com{cloudName}/auto/upload`, {
       method: 'POST',
-      body: cloudinaryForm,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: body.toString(),
     });
 
     const data = await res.json();
 
     if (!res.ok) {
       return NextResponse.json(
-        { error: data?.error?.message || `Ошибка Cloudinary (${res.status})` },
+        { error: `Cloudinary (${cloudName}): ${data?.error?.message || res.status}` },
         { status: res.status }
       );
     }
@@ -38,6 +45,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: data.secure_url });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Сбой при загрузке на сервер';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: `${message} (Cloud: ${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME})` },
+      { status: 500 }
+    );
   }
 }
