@@ -5,16 +5,10 @@ const REPO = process.env.GITHUB_REPO?.trim();
 const TOKEN = process.env.GITHUB_TOKEN?.trim();
 const ADMIN_PIN = process.env.ADMIN_PIN?.trim();
 
-function getGitHubUrl() {
-  return [
-    'https://github.com',
-    'repos',
-    OWNER,
-    REPO,
-    'contents',
-    'data',
-    'products.json',
-  ].join('/');
+function buildGitHubUrl() {
+  const url = new URL('https://github.com');
+  url.pathname = `/repos/${OWNER}/${REPO}/contents/data/products.json`;
+  return url;
 }
 
 async function getFileFromGitHub() {
@@ -22,9 +16,11 @@ async function getFileFromGitHub() {
     throw new Error('Не заданы GITHUB_OWNER, GITHUB_REPO или GITHUB_TOKEN в Vercel');
   }
 
-  const url = `${getGitHubUrl()}?ref=main&t=${Date.now()}`;
+  const url = buildGitHubUrl();
+  url.searchParams.set('ref', 'main');
+  url.searchParams.set('t', String(Date.now()));
 
-  const res = await fetch(url, {
+  const res = await fetch(url.toString(), {
     headers: {
       Authorization: `Bearer ${TOKEN}`,
       Accept: 'application/vnd.github.v3+json',
@@ -39,7 +35,7 @@ async function getFileFromGitHub() {
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`GitHub GET (${res.status}): ${text}`);
+    throw new Error(`GitHub GET (${res.status}) на ${url.hostname}: ${text.slice(0, 150)}`);
   }
 
   const data = await res.json();
@@ -56,6 +52,7 @@ async function getFileFromGitHub() {
 
 async function updateFileInGitHub(products: unknown[], sha: string | undefined, message: string) {
   const contentBase64 = Buffer.from(JSON.stringify(products, null, 2), 'utf-8').toString('base64');
+  const url = buildGitHubUrl();
 
   const payload: Record<string, unknown> = {
     message,
@@ -67,7 +64,7 @@ async function updateFileInGitHub(products: unknown[], sha: string | undefined, 
     payload.sha = sha;
   }
 
-  const res = await fetch(getGitHubUrl(), {
+  const res = await fetch(url.toString(), {
     method: 'PUT',
     headers: {
       Authorization: `Bearer ${TOKEN}`,
@@ -80,7 +77,7 @@ async function updateFileInGitHub(products: unknown[], sha: string | undefined, 
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`GitHub PUT (${res.status}): ${text}`);
+    throw new Error(`GitHub PUT (${res.status}) на ${url.hostname}: ${text.slice(0, 150)}`);
   }
 }
 
@@ -89,9 +86,8 @@ export async function GET() {
     const { products } = await getFileFromGitHub();
     return NextResponse.json(products);
   } catch (error) {
-    const err = error as { message?: string; cause?: { code?: string; message?: string } };
-    const details = err?.cause?.code || err?.cause?.message || err?.message || 'Ошибка загрузки';
-    return NextResponse.json({ error: details }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Ошибка загрузки';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -135,8 +131,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: 'Неизвестное действие' }, { status: 400 });
   } catch (error) {
-    const err = error as { message?: string; cause?: { code?: string; message?: string } };
-    const details = err?.cause?.code || err?.cause?.message || err?.message || 'Ошибка обновления';
-    return NextResponse.json({ error: details }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Ошибка обновления';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
