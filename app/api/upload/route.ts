@@ -1,54 +1,36 @@
+import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { NextResponse } from 'next/server';
 
-export async function POST(req: Request) {
+export async function POST(request: Request): Promise<NextResponse> {
+  const body = (await request.json()) as HandleUploadBody;
+
   try {
-    const formData = await req.formData();
-    const file = formData.get('file') as File | null;
-
-    if (!file) {
-      return NextResponse.json({ error: 'Файл не получен сервером' }, { status: 400 });
-    }
-
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME?.trim();
-    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET?.trim();
-
-    if (!cloudName || !uploadPreset) {
-      return NextResponse.json({ error: 'Не заданы ключи Cloudinary в Vercel' }, { status: 500 });
-    }
-
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const base64Data = `data:${file.type || 'image/jpeg'};base64,${buffer.toString('base64')}`;
-
-    const body = new URLSearchParams();
-    body.append('file', base64Data);
-    body.append('upload_preset', uploadPreset);
-
-    const res = await fetch(`https://cloudinary.com{cloudName}/auto/upload`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'JamidoApp/1.0',
+    const jsonResponse = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async () => {
+        return {
+          allowedContentTypes: [
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+            'image/heic',
+            'image/heif',
+            'video/mp4',
+            'video/quicktime',
+            'video/webm',
+          ],
+          addRandomSuffix: true,
+        };
       },
-      body: body.toString(),
+      onUploadCompleted: async () => {},
     });
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: `Cloudinary (${cloudName}): ${data?.error?.message || res.status}` },
-        { status: res.status }
-      );
-    }
-
-    return NextResponse.json({ url: data.secure_url });
-  } catch (error: unknown) {
-    const err = error as { message?: string; cause?: { code?: string; message?: string } };
-    const details = err?.cause?.code || err?.cause?.message || err?.message || 'Неизвестный сбой';
+    return NextResponse.json(jsonResponse);
+  } catch (error) {
     return NextResponse.json(
-      { error: `${details} (Cloud: ${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME})` },
-      { status: 500 }
+      { error: (error as Error).message },
+      { status: 400 }
     );
   }
 }
