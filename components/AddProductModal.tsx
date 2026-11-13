@@ -23,7 +23,7 @@ export function AddProductModal({ isOpen, adminPin, onClose, onSuccess }: AddPro
   if (!isOpen) return null;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.;
+    const selected = e.target.files?.item(0);
     if (selected) {
       setFile(selected);
       setIsVideo(selected.type.startsWith('video/'));
